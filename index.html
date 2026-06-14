@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>金酒公司 — 會計成本彙整系統</title>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f0f4f8; color: #1a202c; min-height: 100vh; }
+
+  header {
+    background: linear-gradient(135deg, #1F4E79 0%, #2D6FAE 100%);
+    color: white; padding: 20px 40px;
+    display: flex; align-items: center; gap: 16px;
+  }
+  header .logo { font-size: 32px; }
+  header h1 { font-size: 22px; font-weight: 700; }
+  header p { font-size: 13px; opacity: 0.8; margin-top: 2px; }
+  .badge { margin-left: auto; background: rgba(255,255,255,0.2); padding: 4px 12px; border-radius: 20px; font-size: 12px; }
+
+  main { max-width: 1100px; margin: 0 auto; padding: 32px 20px; }
+
+  .section-title { font-size: 13px; font-weight: 700; color: #4a5568; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 16px; margin-top: 32px; }
+
+  .card { background: white; border-radius: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); padding: 24px; margin-bottom: 20px; }
+
+  .flow { display: flex; gap: 0; align-items: center; background: white; border-radius: 12px; padding: 20px 24px; margin-bottom: 24px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+  .step { flex: 1; text-align: center; position: relative; }
+  .step:not(:last-child)::after { content: '→'; position: absolute; right: -4px; top: 50%; transform: translateY(-50%); font-size: 20px; color: #cbd5e0; }
+  .step-icon { font-size: 28px; margin-bottom: 6px; }
+  .step-label { font-size: 12px; font-weight: 600; color: #4a5568; }
+  .step-sub { font-size: 11px; color: #a0aec0; margin-top: 2px; }
+
+  /* Drop zone */
+  #dropZone { border: 2px dashed #BDD7EE; border-radius: 10px 10px 0 0; padding: 28px 20px; text-align: center; cursor: pointer; transition: background 0.15s, border-color 0.15s; background: #f7fafc; }
+  #dropZone:hover, #dropZone.drag-over { background: #EBF3FB; border-color: #1F4E79; }
+  #dropIcon { font-size: 32px; margin-bottom: 6px; }
+  #dropText { font-size: 14px; font-weight: 600; color: #2d3748; }
+  #dropSub  { font-size: 12px; color: #a0aec0; margin-top: 4px; }
+
+  .file-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; padding: 16px 20px 4px; }
+  .file-item { border: 1.5px solid #e2e8f0; border-radius: 8px; padding: 12px 16px; background: #f7fafc; display: flex; align-items: center; gap: 10px; font-size: 13px; cursor: pointer; transition: border-color 0.2s, background 0.2s; }
+  .file-item:hover { border-color: #1F4E79; background: #EBF3FB; }
+  .file-item.ready { border-color: #276749; background: #F0FFF4; }
+  .file-item.ready .sub { color: #276749; font-weight: 600; }
+  .file-item .name { font-weight: 600; color: #2d3748; font-size: 12px; }
+  .file-item .sub { color: #718096; font-size: 11px; margin-top: 2px; }
+
+  .hint { padding: 8px 20px 16px; font-size: 12px; color: #a0aec0; text-align: center; }
+
+  .btn-primary { background: #1F4E79; color: white; border: none; padding: 14px 36px; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; transition: background 0.2s; display: flex; align-items: center; gap: 8px; }
+  .btn-primary:hover { background: #163a5a; }
+  .btn-primary:disabled { background: #a0aec0; cursor: not-allowed; }
+
+  .btn-download { background: #276749; color: white; border: none; padding: 12px 28px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; transition: background 0.2s; }
+  .btn-download:hover { background: #1c4a33; }
+
+  .spinner { width: 20px; height: 20px; border: 2px solid rgba(255,255,255,0.4); border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite; display: none; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .log-box { background: #1a202c; color: #68d391; border-radius: 8px; padding: 16px; font-family: monospace; font-size: 13px; min-height: 80px; display: none; margin-top: 16px; }
+  .log-line { margin-bottom: 4px; }
+  .log-line.done::before { content: '✓  '; color: #68d391; }
+
+  .result-section { display: none; margin-top: 24px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { background: #1F4E79; color: white; padding: 10px 14px; text-align: center; font-weight: 600; }
+  td { padding: 10px 14px; text-align: center; border-bottom: 1px solid #e2e8f0; }
+  tr:nth-child(even) td { background: #EBF3FB; }
+  tr:hover td { background: #BDD7EE44; }
+  .total-row td { background: #D6E4F0 !important; font-weight: 700; }
+  .highlight-cost { color: #1F4E79; font-weight: 700; }
+
+  .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+  .summary-card { background: white; border-radius: 10px; padding: 16px 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); border-left: 4px solid #1F4E79; }
+  .summary-card.green { border-left-color: #276749; }
+  .summary-card.orange { border-left-color: #C05621; }
+  .summary-card.purple { border-left-color: #553C9A; }
+  .summary-card .label { font-size: 11px; color: #718096; margin-bottom: 4px; }
+  .summary-card .value { font-size: 22px; font-weight: 700; color: #1a202c; }
+  .summary-card .sub { font-size: 11px; color: #a0aec0; margin-top: 2px; }
+
+  @media (max-width: 700px) {
+    .summary-grid { grid-template-columns: repeat(2, 1fr); }
+    .flow { flex-direction: column; gap: 12px; }
+    .step::after { display: none; }
+    header { padding: 16px 20px; }
+    header h1 { font-size: 17px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">🏭</div>
+  <div>
+    <h1>金酒公司 — 會計成本彙整系統</h1>
+    <p>自動彙整多廠資料 · 即時計算產品成本 · 一鍵下載報表</p>
+  </div>
+  <div class="badge">Demo 版本</div>
+</header>
+
+<main>
+  <div class="flow">
+    <div class="step"><div class="step-icon">📊</div><div class="step-label">上傳原始報表</div><div class="step-sub">5 張 Excel</div></div>
+    <div class="step"><div class="step-icon">⚙️</div><div class="step-label">自動彙整計算</div><div class="step-sub">薪資分攤 + 物料成本</div></div>
+    <div class="step"><div class="step-icon">✅</div><div class="step-label">驗證結果</div><div class="step-sub">即時顯示明細</div></div>
+    <div class="step"><div class="step-icon">📥</div><div class="step-label">下載報表</div><div class="step-sub">產品成本表 xlsx</div></div>
+  </div>
+
+  <div class="section-title">上傳本月原始報表</div>
+  <div class="card" style="padding:0; overflow:hidden;">
+    <div id="dropZone">
+      <div id="dropIcon">📂</div>
+      <div id="dropText">拖拉 Excel 檔案到這裡</div>
+      <div id="dropSub">或點擊選擇檔案（可一次選多個）</div>
+      <input type="file" id="fileInput" accept=".xlsx" multiple style="display:none" onchange="handleFiles(this.files)">
+    </div>
+    <div class="file-grid">
+      <div class="file-item" id="slot-f1" onclick="document.getElementById('fileInput').click()">
+        <div style="font-size:20px">📋</div>
+        <div><div class="name">薪資統計表</div><div class="sub" id="lbl-f1">尚未指定</div></div>
+      </div>
+      <div class="file-item" id="slot-f2" onclick="document.getElementById('fileInput').click()">
+        <div style="font-size:20px">⏱️</div>
+        <div><div class="name">工時比例表</div><div class="sub" id="lbl-f2">尚未指定</div></div>
+      </div>
+      <div class="file-item" id="slot-f3" onclick="document.getElementById('fileInput').click()">
+        <div style="font-size:20px">🍶</div>
+        <div><div class="name">半成品盤存表</div><div class="sub" id="lbl-f3">尚未指定</div></div>
+      </div>
+      <div class="file-item" id="slot-f4" onclick="document.getElementById('fileInput').click()">
+        <div style="font-size:20px">📦</div>
+        <div><div class="name">包裝廠生產月報</div><div class="sub" id="lbl-f4">尚未指定</div></div>
+      </div>
+      <div class="file-item" id="slot-f5" onclick="document.getElementById('fileInput').click()">
+        <div style="font-size:20px">🧱</div>
+        <div><div class="name">物料盤存表</div><div class="sub" id="lbl-f5">尚未指定</div></div>
+      </div>
+    </div>
+    <div class="hint">或者不上傳，直接點執行使用內建虛擬資料</div>
+  </div>
+
+  <div style="display:flex; justify-content:center; margin: 8px 0 0;">
+    <button class="btn-primary" id="runBtn" onclick="runCalc()">
+      <span id="btnIcon">▶</span>
+      <span id="btnText">執行自動彙整計算</span>
+      <div class="spinner" id="spinner"></div>
+    </button>
+  </div>
+
+  <div class="log-box" id="logBox"></div>
+
+  <div class="result-section" id="resultSection">
+    <div class="section-title">彙整結果</div>
+    <div class="summary-grid" id="summaryGrid"></div>
+    <div class="card" style="padding:0; overflow:hidden;">
+      <table>
+        <thead>
+          <tr>
+            <th>產品代碼</th><th>產品名稱</th><th>本月產量 (瓶)</th>
+            <th>直工薪資分攤 (元)</th><th>物料成本 (元)</th>
+            <th>製造費用合計 (元)</th><th>單瓶成本 (元)</th>
+          </tr>
+        </thead>
+        <tbody id="resultBody"></tbody>
+      </table>
+    </div>
+    <div style="display:flex; justify-content:center; margin-top:24px;">
+      <button class="btn-download" onclick="downloadExcel()">📥 下載產品成本表 Excel</button>
+    </div>
+  </div>
+</main>
+
+<script>
+// ── 虛擬資料 ──────────────────────────────────────────
+const DEMO_SALARY = [
+  ['E001','王大明','金城廠釀造部','作業員',38000,3200,1000,42200],
+  ['E002','李小花','金城廠釀造部','作業員',36000,2800,1000,39800],
+  ['E003','張志豪','金城廠釀造部','領班',  48000,4500,2000,54500],
+  ['E004','陳美玲','金城廠包裝部','作業員',36000,2500,1000,39500],
+  ['E005','林建國','金城廠包裝部','作業員',37000,3100,1000,41100],
+  ['E006','黃雅慧','金城廠包裝部','領班',  47000,4200,2000,53200],
+  ['E007','吳正義','金寧廠釀造部','作業員',38000,3500,1000,42500],
+  ['E008','蔡淑芬','金寧廠釀造部','作業員',36500,2900,1000,40400],
+  ['E009','鄭文傑','金寧廠釀造部','領班',  49000,5000,2000,56000],
+  ['E010','許美雪','金寧廠包裝部','作業員',36000,2600,1000,39600],
+  ['E011','洪志明','金寧廠包裝部','作業員',37500,3000,1000,41500],
+  ['E012','謝佳宜','金寧廠包裝部','領班',  48000,4800,2000,54800],
+];
+const DEMO_WORKHOUR = [
+  ['金城廠釀造部',1840,530,420,580,310],
+  ['金城廠包裝部',1760,480,390,560,330],
+  ['金寧廠釀造部',1920,510,450,590,370],
+  ['金寧廠包裝部',1800,490,410,570,330],
+];
+const DEMO_PACKAGING = [
+  ['KL-58-05', '金門高粱酒 58度 0.5L',   '瓶',85000,83500,1680,6958,420],
+  ['KL-58-075','金門高粱酒 58度 0.75L',  '瓶',60000,58800,1560,4900,295],
+  ['KL-38-05', '金門高粱酒 38度 0.5L',   '瓶',95000,93200,1820,7767,465],
+  ['KL-52-06', '金門特級高粱酒 52度 0.6L','瓶',42000,41100,980,3425,205],
+];
+const DEMO_MATERIAL = [
+  ['M001','高粱',      '公斤',35000,120000,118500,36500,18.5],
+  ['M002','小麥（麴用）','公斤', 8000, 25000, 24200, 8800,12.0],
+  ['M003','0.5L玻璃瓶','個',  15000,100000, 96800,18200, 8.2],
+  ['M004','0.75L玻璃瓶','個', 10000, 65000, 62300,12700,11.5],
+  ['M005','0.6L玻璃瓶','個',   8000, 45000, 43500, 9500,10.8],
+  ['M006','瓶蓋',      '個',  20000,200000,196800,23200, 0.8],
+  ['M007','標籤紙',    '張',  30000,250000,243000,37000, 0.5],
+  ['M008','外箱紙板',  '個',   5000, 25000, 24200, 5800, 9.5],
+];
+
+// 每瓶用料（物料代碼 → 每瓶用量）
+const MATERIAL_USAGE = {
+  'KL-58-05':  {M001:0.35,M002:0.05,M003:1.0,M006:1.0,M007:1.0,M008:0.083},
+  'KL-58-075': {M001:0.52,M002:0.08,M004:1.0,M006:1.0,M007:1.0,M008:0.083},
+  'KL-38-05':  {M001:0.22,M002:0.04,M003:1.0,M006:1.0,M007:1.0,M008:0.083},
+  'KL-52-06':  {M001:0.42,M002:0.07,M005:1.0,M006:1.0,M007:1.0,M008:0.083},
+};
+const PRODUCT_CODES = ['KL-58-05','KL-58-075','KL-38-05','KL-52-06'];
+const PRODUCT_NAMES = {
+  'KL-58-05':'金門高粱酒 58度 0.5L',
+  'KL-58-075':'金門高粱酒 58度 0.75L',
+  'KL-38-05':'金門高粱酒 38度 0.5L',
+  'KL-52-06':'金門特級高粱酒 52度 0.6L',
+};
+
+// ── 檔案匹配 ──
+const SLOT_KEYWORDS = [
+  {id:'f1',lblId:'lbl-f1',slotId:'slot-f1',keywords:['薪資']},
+  {id:'f2',lblId:'lbl-f2',slotId:'slot-f2',keywords:['工時']},
+  {id:'f5',lblId:'lbl-f5',slotId:'slot-f5',keywords:['物料']},
+  {id:'f4',lblId:'lbl-f4',slotId:'slot-f4',keywords:['包裝','月報']},
+  {id:'f3',lblId:'lbl-f3',slotId:'slot-f3',keywords:['半成品','盤存']},
+];
+const slotFiles = {f1:null,f2:null,f3:null,f4:null,f5:null};
+
+function matchSlot(name) {
+  const n = name.toLowerCase();
+  for (const s of SLOT_KEYWORDS)
+    if (s.keywords.some(k => n.includes(k))) return s;
+  return null;
+}
+function handleFiles(files) {
+  const unmatched = [];
+  for (const f of files) {
+    const slot = matchSlot(f.name);
+    if (slot) {
+      slotFiles[slot.id] = f;
+      document.getElementById(slot.lblId).textContent = f.name;
+      document.getElementById(slot.slotId).classList.add('ready');
+    } else unmatched.push(f.name);
+  }
+  if (unmatched.length)
+    alert('以下檔案無法自動對應，請確認檔名含關鍵字（薪資／工時／半成品／包裝／物料）：\n' + unmatched.join('\n'));
+}
+
+// 拖拉
+document.addEventListener('DOMContentLoaded', () => {
+  const zone = document.getElementById('dropZone');
+  zone.addEventListener('click', () => document.getElementById('fileInput').click());
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault();
+    zone.classList.remove('drag-over');
+    handleFiles(e.dataTransfer.files);
+  });
+});
+
+// ── 讀 Excel ──
+function readExcel(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const wb = XLSX.read(e.target.result, {type:'array'});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      resolve(XLSX.utils.sheet_to_json(ws, {header:1, defval:''}));
+    };
+    reader.onerror = reject;
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+// ── 計算核心 ──
+async function calculate(salaryRows, workhourRows, packagingRows, materialRows) {
+  // 薪資：按部門加總
+  const deptSalary = {};
+  for (const r of salaryRows.slice(2)) {
+    if (!r[0] || r[0]==='合計') continue;
+    const dept = r[2], total = Number(r[7])||0;
+    deptSalary[dept] = (deptSalary[dept]||0) + total;
+  }
+
+  // 工時分攤
+  const laborCost = {}, wh = {};
+  for (const code of PRODUCT_CODES) { laborCost[code]=0; }
+  for (const r of workhourRows.slice(2)) {
+    if (!r[0]) continue;
+    const dept=r[0], totalHr=Number(r[1])||1, salary=deptSalary[dept]||0;
+    const rate = salary/totalHr;
+    PRODUCT_CODES.forEach((code,i) => {
+      const hrs = Number(r[i+2])||0;
+      laborCost[code] += rate * hrs;
+    });
+  }
+
+  // 產量
+  const prodVol = {};
+  for (const r of packagingRows.slice(2)) {
+    if (!r[0]) continue;
+    prodVol[r[0]] = Number(r[4])||0;
+  }
+
+  // 物料成本
+  const matCost = {};
+  for (const r of materialRows.slice(2)) {
+    if (!r[0]) continue;
+    matCost[r[0]] = Number(r[7])||0;
+  }
+  const materialCost = {};
+  for (const code of PRODUCT_CODES) {
+    materialCost[code] = 0;
+    const qty = prodVol[code]||0;
+    const usage = MATERIAL_USAGE[code]||{};
+    for (const [matCode, perUnit] of Object.entries(usage)) {
+      materialCost[code] += (matCost[matCode]||0) * perUnit * qty;
+    }
+  }
+
+  // 彙整
+  return PRODUCT_CODES.map(code => {
+    const qty = prodVol[code]||0;
+    const lc = laborCost[code]||0;
+    const mc = materialCost[code]||0;
+    const total = lc + mc;
+    return {
+      code, name: PRODUCT_NAMES[code], qty,
+      labor: Math.round(lc), material: Math.round(mc),
+      total: Math.round(total),
+      unitCost: qty ? Math.round(total/qty*100)/100 : 0,
+    };
+  });
+}
+
+// ── 主流程 ──
+let lastResults = null;
+
+async function runCalc() {
+  const btn = document.getElementById('runBtn');
+  const spinner = document.getElementById('spinner');
+  const logBox = document.getElementById('logBox');
+  btn.disabled = true;
+  document.getElementById('btnText').textContent = '計算中...';
+  spinner.style.display = 'block';
+  document.getElementById('btnIcon').style.display = 'none';
+  logBox.style.display = 'block';
+  logBox.innerHTML = '';
+  document.getElementById('resultSection').style.display = 'none';
+
+  try {
+    // 讀取資料
+    const hasFiles = Object.values(slotFiles).some(f => f!==null);
+    appendLog(hasFiles ? '讀取上傳的 Excel 檔案...' : '使用內建虛擬資料...');
+
+    async function getData(slotId, demoData) {
+      if (slotFiles[slotId]) {
+        const rows = await readExcel(slotFiles[slotId]);
+        appendLog(`✓ 讀取 ${slotFiles[slotId].name}`, true);
+        return rows;
+      }
+      return demoData;
+    }
+
+    const salaryRows   = await getData('f1', [null, null, ...DEMO_SALARY]);
+    const workhourRows = await getData('f2', [null, null, ...DEMO_WORKHOUR]);
+    // f3 半成品目前不影響計算
+    const packagingRows = await getData('f4', [null, null, ...DEMO_PACKAGING]);
+    const materialRows  = await getData('f5', [null, null, ...DEMO_MATERIAL]);
+
+    appendLog('計算薪資分攤...', true);
+    appendLog('計算物料成本...', true);
+    const results = await calculate(salaryRows, workhourRows, packagingRows, materialRows);
+    appendLog(`產品成本彙整完成 — 共 ${results.length} 項產品`, true);
+
+    lastResults = results;
+    renderResults(results);
+  } catch(e) {
+    appendLog('❌ 錯誤：' + e.message);
+    console.error(e);
+  }
+
+  btn.disabled = false;
+  spinner.style.display = 'none';
+  document.getElementById('btnIcon').style.display = 'block';
+  document.getElementById('btnText').textContent = '重新執行';
+}
+
+function appendLog(msg, isDone=false) {
+  const logBox = document.getElementById('logBox');
+  const div = document.createElement('div');
+  div.className = 'log-line' + (isDone ? ' done' : '');
+  div.textContent = msg;
+  logBox.appendChild(div);
+  logBox.scrollTop = logBox.scrollHeight;
+}
+
+function fmt(n) { return Number(n).toLocaleString('zh-TW'); }
+function fmtDec(n) { return Number(n).toLocaleString('zh-TW',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+
+function renderResults(results) {
+  const totalQty   = results.reduce((a,r)=>a+r.qty,0);
+  const totalLabor = results.reduce((a,r)=>a+r.labor,0);
+  const totalMat   = results.reduce((a,r)=>a+r.material,0);
+  const totalAll   = results.reduce((a,r)=>a+r.total,0);
+
+  document.getElementById('summaryGrid').innerHTML = `
+    <div class="summary-card"><div class="label">本月總產量</div><div class="value">${fmt(totalQty)}</div><div class="sub">瓶 · 4 項產品</div></div>
+    <div class="summary-card green"><div class="label">直工薪資分攤</div><div class="value">$${fmt(totalLabor)}</div><div class="sub">元</div></div>
+    <div class="summary-card orange"><div class="label">物料成本合計</div><div class="value">$${fmt(totalMat)}</div><div class="sub">元</div></div>
+    <div class="summary-card purple"><div class="label">製造費用總計</div><div class="value">$${fmt(totalAll)}</div><div class="sub">元</div></div>
+  `;
+
+  const tbody = document.getElementById('resultBody');
+  tbody.innerHTML = '';
+  for (const r of results) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${r.code}</td><td style="text-align:left">${r.name}</td><td>${fmt(r.qty)}</td><td>${fmt(r.labor)}</td><td>${fmt(r.material)}</td><td>${fmt(r.total)}</td><td class="highlight-cost">${fmtDec(r.unitCost)}</td>`;
+    tbody.appendChild(tr);
+  }
+  const ttr = document.createElement('tr');
+  ttr.className='total-row';
+  ttr.innerHTML=`<td colspan="2">合計</td><td>${fmt(totalQty)}</td><td>${fmt(totalLabor)}</td><td>${fmt(totalMat)}</td><td>${fmt(totalAll)}</td><td>—</td>`;
+  tbody.appendChild(ttr);
+
+  document.getElementById('resultSection').style.display = 'block';
+  document.getElementById('resultSection').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function downloadExcel() {
+  if (!lastResults) return;
+  const wb = XLSX.utils.book_new();
+
+  // Sheet 1
+  const header = ['產品代碼','產品名稱','本月產量(瓶)','直工薪資分攤(元)','物料成本(元)','製造費用合計(元)','單瓶成本(元)'];
+  const rows = lastResults.map(r=>[r.code,r.name,r.qty,r.labor,r.material,r.total,r.unitCost]);
+  const total = lastResults.reduce((a,r)=>({qty:a.qty+r.qty,labor:a.labor+r.labor,material:a.material+r.material,total:a.total+r.total}),{qty:0,labor:0,material:0,total:0});
+  rows.push(['合計','',total.qty,total.labor,total.material,total.total,'']);
+
+  const ws = XLSX.utils.aoa_to_sheet([header,...rows]);
+  ws['!cols'] = [12,26,14,18,16,18,14].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb, ws, '產品成本彙整表');
+  XLSX.writeFile(wb, '產品成本表.xlsx');
+}
+</script>
+</body>
+</html>

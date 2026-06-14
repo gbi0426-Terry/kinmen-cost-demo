@@ -203,6 +203,11 @@ tr:hover td { background: #BDD7EE44; }
       <span class="nav-label">成本彙整計算</span>
     </div>
 
+    <div class="nav-item" id="nav-cost" onclick="showPage('cost')">
+      <span class="nav-icon">📋</span>
+      <span class="nav-label">營業成本表</span>
+    </div>
+
     <div class="nav-item" id="nav-doc" onclick="showPage('doc')">
       <span class="nav-icon">📖</span>
       <span class="nav-label">系統說明</span>
@@ -424,6 +429,89 @@ tr:hover td { background: #BDD7EE44; }
 
     </div><!-- end page-doc -->
 
+    <!-- Page 3: 營業成本表 -->
+    <div class="page" id="page-cost">
+
+      <div class="flow">
+        <div class="step"><div class="step-icon">📦</div><div class="step-label">期初盤存表</div><div class="step-sub">月初庫存金額</div></div>
+        <div class="step"><div class="step-icon">➕</div><div class="step-label">本期製造成本</div><div class="step-sub">原料+人工+製費</div></div>
+        <div class="step"><div class="step-icon">📦</div><div class="step-label">期末盤存表</div><div class="step-sub">月末庫存金額</div></div>
+        <div class="step"><div class="step-icon">✅</div><div class="step-label">銷貨成本</div><div class="step-sub">自動計算結果</div></div>
+      </div>
+
+      <div class="section-title">上傳報表</div>
+      <div class="card">
+        <div id="dropZoneCost" class="drop-zone" style="cursor:pointer">
+          <div class="drop-icon">📂</div>
+          <div class="drop-text">拖曳或點擊上傳 Excel 檔案</div>
+          <div class="drop-hint">可同時上傳多個檔案，系統自動對應欄位</div>
+          <input type="file" id="fileInputCost" accept=".xlsx,.xls" multiple style="display:none" onchange="handleFilesCost(this.files)">
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:16px">
+          <div class="slot" id="slot-c1"><span class="slot-icon">📄</span><div><div class="slot-title">期初製成品盤存表</div><div class="slot-label" id="lbl-c1">等待上傳…</div></div></div>
+          <div class="slot" id="slot-c2"><span class="slot-icon">🧾</span><div><div class="slot-title">製造費用傳票彙總</div><div class="slot-label" id="lbl-c2">等待上傳…</div></div></div>
+          <div class="slot" id="slot-c3"><span class="slot-icon">📄</span><div><div class="slot-title">期末製成品盤存表</div><div class="slot-label" id="lbl-c3">等待上傳…</div></div></div>
+        </div>
+        <p style="font-size:12px;color:#718096;margin-top:12px">💡 未上傳的檔案將自動套用內建虛擬資料</p>
+      </div>
+
+      <div style="text-align:center;margin:8px 0 24px">
+        <button class="run-btn" onclick="runCostCalc()" id="runBtnCost">
+          <span id="spinnerCost" class="spinner" style="display:none"></span>
+          <span id="btnIconCost">⚙️</span>
+          <span id="btnTextCost">計算營業成本表</span>
+        </button>
+      </div>
+      <div id="logBoxCost" class="log-box" style="display:none"></div>
+
+      <div id="costResultSection" style="display:none">
+        <div class="section-title">計算結果</div>
+
+        <!-- 彙總卡片 -->
+        <div id="costSummaryGrid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px"></div>
+
+        <!-- 營業成本表 -->
+        <div class="card" style="padding:0;overflow:hidden">
+          <div style="background:linear-gradient(135deg,#1F4E79,#2D6FAE);color:white;padding:16px 24px;display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <div style="font-size:16px;font-weight:700">金酒公司 — 營業成本表</div>
+              <div style="font-size:12px;opacity:.8;margin-top:2px">2026年05月</div>
+            </div>
+            <button onclick="downloadCostExcel()" style="background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.4);color:white;padding:7px 16px;border-radius:8px;cursor:pointer;font-size:13px">📥 下載 Excel</button>
+          </div>
+          <table style="width:100%;border-collapse:collapse;font-size:13px">
+            <thead>
+              <tr style="background:#EBF3FB">
+                <th style="text-align:left;padding:10px 20px;border-bottom:2px solid #BDD7EE;width:60%">科目</th>
+                <th style="text-align:right;padding:10px 20px;border-bottom:2px solid #BDD7EE">小計(元)</th>
+                <th style="text-align:right;padding:10px 20px;border-bottom:2px solid #BDD7EE">合計(元)</th>
+              </tr>
+            </thead>
+            <tbody id="costTableBody"></tbody>
+          </table>
+        </div>
+
+        <!-- 各產品明細 -->
+        <div class="section-title">各產品成本明細</div>
+        <div class="card" style="padding:0;overflow:hidden">
+          <table style="width:100%;border-collapse:collapse;font-size:13px">
+            <thead>
+              <tr style="background:#F7FAFC">
+                <th style="padding:10px 14px;border-bottom:2px solid #E2E8F0">產品代碼</th>
+                <th style="padding:10px 14px;border-bottom:2px solid #E2E8F0;text-align:left">產品名稱</th>
+                <th style="padding:10px 14px;border-bottom:2px solid #E2E8F0">期初存量</th>
+                <th style="padding:10px 14px;border-bottom:2px solid #E2E8F0">本期產量</th>
+                <th style="padding:10px 14px;border-bottom:2px solid #E2E8F0">期末存量</th>
+                <th style="padding:10px 14px;border-bottom:2px solid #E2E8F0">製造成本(元)</th>
+                <th style="padding:10px 14px;border-bottom:2px solid #E2E8F0" class="highlight-cost">銷貨成本(元)</th>
+              </tr>
+            </thead>
+            <tbody id="costDetailBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div><!-- end page-cost -->
+
   </div><!-- end main -->
 </div><!-- end layout -->
 
@@ -616,6 +704,262 @@ function renderResults(results) {
   const t=document.createElement('tr');t.className='total-row';t.innerHTML=`<td colspan="2">合計</td><td>${fmt(tQ)}</td><td>${fmt(tL)}</td><td>${fmt(tM)}</td><td>${fmt(tA)}</td><td>—</td>`;tbody.appendChild(t);
   document.getElementById('resultSection').style.display='block';
   document.getElementById('resultSection').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+// ── 營業成本表虛擬資料 ──
+const DEMO_OPENING_ROWS = [null,null,
+  ['KL-58-05',  '金門高粱酒 58度 0.5L',   '瓶',12500,19.05,238125,'上月結轉'],
+  ['KL-58-075', '金門高粱酒 58度 0.75L',  '瓶', 8200,26.10,214020,'上月結轉'],
+  ['KL-38-05',  '金門高粱酒 38度 0.5L',   '瓶',15300,16.55,253215,'上月結轉'],
+  ['KL-52-06',  '金門特級高粱酒 52度 0.6L','瓶', 5800,23.80,138040,'上月結轉'],
+  ['合計','','','','',843400,''],
+];
+const DEMO_OVERHEAD_ROWS = [null,null,
+  ['V2605-001','水電費',    '金城廠5月水電費用', 285000,'金城廠'],
+  ['V2605-002','水電費',    '金寧廠5月水電費用', 312000,'金寧廠'],
+  ['V2605-003','折舊費',    '釀造設備月折舊',    480000,'全廠'],
+  ['V2605-004','折舊費',    '包裝設備月折舊',    195000,'全廠'],
+  ['V2605-005','維修費',    '設備定期保養維護',   68000,'金城廠'],
+  ['V2605-006','維修費',    '輸送管線修繕',       42000,'金寧廠'],
+  ['V2605-007','間接人工費','廠務管理人員薪資',  320000,'全廠'],
+  ['V2605-008','消耗品',    '清潔用品包材耗材',   35000,'全廠'],
+  ['V2605-009','保險費',    '廠房財產保險月攤',   28000,'全廠'],
+  ['V2605-010','其他製費',  '雜項製造費用',       15000,'全廠'],
+  ['合計','','',1780000,''],
+];
+const DEMO_CLOSING_ROWS = [null,null,
+  ['KL-58-05',  '金門高粱酒 58度 0.5L',   '瓶',10800,19.16,206928,'本月結轉'],
+  ['KL-58-075', '金門高粱酒 58度 0.75L',  '瓶', 7500,26.28,197100,'本月結轉'],
+  ['KL-38-05',  '金門高粱酒 38度 0.5L',   '瓶',13900,16.68,231852,'本月結轉'],
+  ['KL-52-06',  '金門特級高粱酒 52度 0.6L','瓶', 5200,23.93,124436,'本月結轉'],
+  ['合計','','','','',760316,''],
+];
+
+const COST_SLOT_KEYWORDS = [
+  {id:'c1',lblId:'lbl-c1',slotId:'slot-c1',keywords:['期初']},
+  {id:'c2',lblId:'lbl-c2',slotId:'slot-c2',keywords:['傳票','製造費用']},
+  {id:'c3',lblId:'lbl-c3',slotId:'slot-c3',keywords:['期末']},
+];
+const costSlotFiles = {c1:null,c2:null,c3:null};
+
+function matchCostSlot(name) {
+  for (const s of COST_SLOT_KEYWORDS) if (s.keywords.some(k=>name.includes(k))) return s;
+  return null;
+}
+function handleFilesCost(files) {
+  const unmatched = [];
+  for (const f of files) {
+    const slot = matchCostSlot(f.name);
+    if (slot) {
+      costSlotFiles[slot.id] = f;
+      document.getElementById(slot.lblId).textContent = f.name;
+      document.getElementById(slot.slotId).classList.add('ready');
+    } else unmatched.push(f.name);
+  }
+  if (unmatched.length) alert('以下檔案無法自動對應：\n' + unmatched.join('\n'));
+}
+document.addEventListener('DOMContentLoaded', () => {
+  const zone = document.getElementById('dropZoneCost');
+  zone.addEventListener('click', () => document.getElementById('fileInputCost').click());
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+  zone.addEventListener('drop', e => { e.preventDefault(); zone.classList.remove('drag-over'); handleFilesCost(e.dataTransfer.files); });
+});
+
+function parseCostOverhead(rows) {
+  const cats = {};
+  for (const r of rows.slice(2)) {
+    if (!r[1] || r[0]==='合計') continue;
+    cats[r[1]] = (cats[r[1]]||0) + (Number(r[3])||0);
+  }
+  return cats;
+}
+function parseCostInventory(rows) {
+  // returns { byProduct: {code: amount}, total: n }
+  const byProduct = {};
+  let total = 0;
+  for (const r of rows.slice(2)) {
+    if (!r[0] || r[0]==='合計') continue;
+    const amt = Number(r[5])||0;
+    byProduct[r[0]] = amt;
+    total += amt;
+  }
+  return { byProduct, total };
+}
+
+async function runCostCalc() {
+  const btn=document.getElementById('runBtnCost'), spinner=document.getElementById('spinnerCost'), logBox=document.getElementById('logBoxCost');
+  btn.disabled=true; document.getElementById('btnTextCost').textContent='計算中...';
+  spinner.style.display='block'; document.getElementById('btnIconCost').style.display='none';
+  logBox.style.display='block'; logBox.innerHTML='';
+  document.getElementById('costResultSection').style.display='none';
+
+  try {
+    async function getCostData(id, demo) {
+      if (costSlotFiles[id]) { const r=await readExcel(costSlotFiles[id]); appendLogCost('讀取 '+costSlotFiles[id].name, true); return r; }
+      return demo;
+    }
+    appendLogCost(Object.values(costSlotFiles).some(f=>f)?'讀取上傳的 Excel 檔案...':'使用內建虛擬資料...');
+    const openR = await getCostData('c1', DEMO_OPENING_ROWS);
+    const overR = await getCostData('c2', DEMO_OVERHEAD_ROWS);
+    const closeR= await getCostData('c3', DEMO_CLOSING_ROWS);
+
+    const opening = parseCostInventory(openR);
+    const closing  = parseCostInventory(closeR);
+    const overCats = parseCostOverhead(overR);
+    const totalOverhead = Object.values(overCats).reduce((a,v)=>a+v,0);
+
+    appendLogCost('計算期初/期末存貨...', true);
+    appendLogCost('彙整製造費用傳票...', true);
+
+    // Use lastResults if available (from product cost calc), otherwise use demo totals
+    let directMaterial = 0, directLabor = 0;
+    if (lastResults) {
+      directMaterial = lastResults.reduce((a,r)=>a+r.material,0);
+      directLabor    = lastResults.reduce((a,r)=>a+r.labor,0);
+      appendLogCost('套用產品成本計算結果...', true);
+    } else {
+      // hardcoded demo fallback — derived from calc page defaults
+      directMaterial = 1824830;
+      directLabor    = 721820;
+      appendLogCost('套用內建直接成本虛擬資料...', true);
+    }
+
+    const totalMfgCost = directMaterial + directLabor + totalOverhead;
+    const availableForSale = opening.total + totalMfgCost;
+    const costOfGoodsSold  = availableForSale - closing.total;
+
+    appendLogCost(`營業成本表計算完成`, true);
+    lastCostData = { opening, closing, overCats, totalOverhead, directMaterial, directLabor, totalMfgCost, availableForSale, costOfGoodsSold };
+    renderCostResults(lastCostData);
+  } catch(e) { appendLogCost('❌ 錯誤：'+e.message); }
+
+  btn.disabled=false; spinner.style.display='none'; document.getElementById('btnIconCost').style.display='block'; document.getElementById('btnTextCost').textContent='重新執行';
+}
+
+function appendLogCost(msg, isDone=false) {
+  const d=document.createElement('div'); d.className='log-line'+(isDone?' done':''); d.textContent=msg;
+  const lb=document.getElementById('logBoxCost'); lb.appendChild(d); lb.scrollTop=lb.scrollHeight;
+}
+
+let lastCostData = null;
+
+function renderCostResults(d) {
+  // Summary cards
+  document.getElementById('costSummaryGrid').innerHTML=`
+    <div class="summary-card"><div class="label">期初製成品存貨</div><div class="value">$${fmt(d.opening.total)}</div><div class="sub">元</div></div>
+    <div class="summary-card green"><div class="label">本期製造成本</div><div class="value">$${fmt(d.totalMfgCost)}</div><div class="sub">元</div></div>
+    <div class="summary-card orange"><div class="label">期末製成品存貨</div><div class="value">$${fmt(d.closing.total)}</div><div class="sub">元</div></div>
+    <div class="summary-card purple"><div class="label">銷貨成本（營業成本）</div><div class="value">$${fmt(d.costOfGoodsSold)}</div><div class="sub">元</div></div>`;
+
+  // Cost statement table
+  const tbody = document.getElementById('costTableBody');
+  const addRow = (label, sub, total, isHeader=false, isGrandTotal=false) => {
+    const tr = document.createElement('tr');
+    const bg = isGrandTotal ? 'background:#EBF3FB;' : isHeader ? 'background:#F7FAFC;' : '';
+    const fw = isHeader||isGrandTotal ? 'font-weight:600;' : '';
+    const indent = label.startsWith('　') ? '' : '';
+    tr.innerHTML=`
+      <td style="padding:9px 20px;border-bottom:1px solid #EDF2F7;${bg}${fw}">${label}</td>
+      <td style="padding:9px 20px;border-bottom:1px solid #EDF2F7;text-align:right;${bg}">${sub!==null?'$'+fmt(sub):''}</td>
+      <td style="padding:9px 20px;border-bottom:1px solid #EDF2F7;text-align:right;${bg}${fw}">${total!==null?'$'+fmt(total):''}</td>`;
+    tbody.appendChild(tr);
+  };
+  tbody.innerHTML='';
+  addRow('一、期初製成品存貨', null, d.opening.total, true);
+  addRow('二、本期製造成本', null, null, true);
+  addRow('　　(一) 直接原料成本', d.directMaterial, null);
+  addRow('　　(二) 直接人工成本', d.directLabor, null);
+  addRow('　　(三) 製造費用', null, null);
+  for (const [cat, amt] of Object.entries(d.overCats)) {
+    addRow('　　　　'+cat, amt, null);
+  }
+  addRow('　　　　製造費用小計', null, d.totalOverhead);
+  addRow('　　本期製造成本合計', null, d.totalMfgCost);
+  addRow('三、可供銷售成品成本 (一+二)', null, d.availableForSale, true);
+  addRow('四、期末製成品存貨', null, d.closing.total, true);
+  addRow('五、銷貨成本（營業成本）', null, d.costOfGoodsSold, false, true);
+
+  // Product detail table
+  const tbody2 = document.getElementById('costDetailBody');
+  tbody2.innerHTML='';
+  const prods = Object.keys(d.opening.byProduct);
+  let tO=0,tC=0,tCogs=0;
+  for (const code of PRODUCT_CODES) {
+    const openAmt  = d.opening.byProduct[code]||0;
+    const closeAmt = d.closing.byProduct[code]||0;
+    const mfg = lastResults ? lastResults.find(r=>r.code===code)?.total||0 : 0;
+    const avail = openAmt + mfg;
+    const cogs  = avail - closeAmt;
+    const openQty  = DEMO_OPENING_ROWS.find(r=>r&&r[0]===code)?.[3]||'-';
+    const closeQty = DEMO_CLOSING_ROWS.find(r=>r&&r[0]===code)?.[3]||'-';
+    const prodQty  = lastResults ? lastResults.find(r=>r.code===code)?.qty||0 : '-';
+    tO+=openAmt; tC+=closeAmt; tCogs+=cogs;
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td style="padding:9px 14px;border-bottom:1px solid #EDF2F7;text-align:center">${code}</td>
+      <td style="padding:9px 14px;border-bottom:1px solid #EDF2F7">${PRODUCT_NAMES[code]}</td>
+      <td style="padding:9px 14px;border-bottom:1px solid #EDF2F7;text-align:center">${fmt(openQty)}</td>
+      <td style="padding:9px 14px;border-bottom:1px solid #EDF2F7;text-align:center">${fmt(prodQty)}</td>
+      <td style="padding:9px 14px;border-bottom:1px solid #EDF2F7;text-align:center">${fmt(closeQty)}</td>
+      <td style="padding:9px 14px;border-bottom:1px solid #EDF2F7;text-align:right">$${fmt(mfg)}</td>
+      <td style="padding:9px 14px;border-bottom:1px solid #EDF2F7;text-align:right;color:#2D6FAE;font-weight:600">$${fmt(cogs)}</td>`;
+    tbody2.appendChild(tr);
+  }
+  const tr=document.createElement('tr');
+  tr.style.fontWeight='700'; tr.style.background='#F7FAFC';
+  tr.innerHTML=`<td colspan="5" style="padding:9px 14px;text-align:center">合計</td>
+    <td style="padding:9px 14px;text-align:right">—</td>
+    <td style="padding:9px 14px;text-align:right;color:#2D6FAE">$${fmt(tCogs)}</td>`;
+  tbody2.appendChild(tr);
+
+  document.getElementById('costResultSection').style.display='block';
+  document.getElementById('costResultSection').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function downloadCostExcel() {
+  if (!lastCostData) return;
+  const d = lastCostData;
+  const wb = XLSX.utils.book_new();
+
+  // Sheet 1: 營業成本表
+  const rows1 = [
+    ['金酒公司 — 營業成本表','',''],
+    ['2026年05月','',''],
+    ['科目','小計(元)','合計(元)'],
+    ['一、期初製成品存貨','',d.opening.total],
+    ['二、本期製造成本','',''],
+    ['　(一) 直接原料成本',d.directMaterial,''],
+    ['　(二) 直接人工成本',d.directLabor,''],
+    ['　(三) 製造費用','',''],
+  ];
+  for (const [cat,amt] of Object.entries(d.overCats)) rows1.push(['　　'+cat, amt,'']);
+  rows1.push(['　　製造費用小計','',d.totalOverhead]);
+  rows1.push(['　本期製造成本合計','',d.totalMfgCost]);
+  rows1.push(['三、可供銷售成品成本','',d.availableForSale]);
+  rows1.push(['四、期末製成品存貨','',d.closing.total]);
+  rows1.push(['五、銷貨成本（營業成本）','',d.costOfGoodsSold]);
+  const ws1 = XLSX.utils.aoa_to_sheet(rows1);
+  ws1['!cols'] = [{wch:36},{wch:16},{wch:16}];
+  XLSX.utils.book_append_sheet(wb, ws1, '營業成本表');
+
+  // Sheet 2: 各產品明細
+  const header2 = ['產品代碼','產品名稱','期初存量(瓶)','本期產量(瓶)','期末存量(瓶)','製造成本(元)','銷貨成本(元)'];
+  const rows2 = [header2];
+  for (const code of PRODUCT_CODES) {
+    const openAmt  = d.opening.byProduct[code]||0;
+    const closeAmt = d.closing.byProduct[code]||0;
+    const mfg = lastResults ? lastResults.find(r=>r.code===code)?.total||0 : 0;
+    const cogs = openAmt + mfg - closeAmt;
+    const openQty  = DEMO_OPENING_ROWS.find(r=>r&&r[0]===code)?.[3]||0;
+    const closeQty = DEMO_CLOSING_ROWS.find(r=>r&&r[0]===code)?.[3]||0;
+    const prodQty  = lastResults ? lastResults.find(r=>r.code===code)?.qty||0 : 0;
+    rows2.push([code, PRODUCT_NAMES[code], openQty, prodQty, closeQty, mfg, cogs]);
+  }
+  const ws2 = XLSX.utils.aoa_to_sheet(rows2);
+  ws2['!cols'] = [{wch:14},{wch:26},{wch:14},{wch:14},{wch:14},{wch:16},{wch:16}];
+  XLSX.utils.book_append_sheet(wb, ws2, '各產品成本明細');
+
+  XLSX.writeFile(wb, '營業成本表.xlsx');
 }
 
 function downloadExcel() {

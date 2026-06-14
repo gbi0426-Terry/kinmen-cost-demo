@@ -607,27 +607,36 @@ tr:hover td { background: #BDD7EE44; }
         <div class="step"><div class="step-icon">✅</div><div class="step-label">銷貨成本</div><div class="step-sub">自動計算結果</div></div>
       </div>
 
-      <div class="section-title">上傳報表</div>
-      <div class="card">
-        <div id="dropZoneCost" class="drop-zone" style="cursor:pointer">
-          <div class="drop-icon">📂</div>
-          <div class="drop-text">拖曳或點擊上傳 Excel 檔案</div>
-          <div class="drop-hint">可同時上傳多個檔案，系統自動對應欄位</div>
+      <div class="section-title">上傳本月原始報表</div>
+      <div class="card" style="padding:0; overflow:hidden;">
+        <div id="dropZoneCost">
+          <div id="dropIcon">📂</div>
+          <div id="dropText">拖拉 Excel 檔案到這裡</div>
+          <div id="dropSub">或點擊選擇檔案（可一次選多個）</div>
           <input type="file" id="fileInputCost" accept=".xlsx,.xls" multiple style="display:none" onchange="handleFilesCost(this.files)">
         </div>
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:16px">
-          <div class="slot" id="slot-c1"><span class="slot-icon">📄</span><div><div class="slot-title">期初製成品盤存表</div><div class="slot-label" id="lbl-c1">等待上傳…</div></div></div>
-          <div class="slot" id="slot-c2"><span class="slot-icon">🧾</span><div><div class="slot-title">製造費用傳票彙總</div><div class="slot-label" id="lbl-c2">等待上傳…</div></div></div>
-          <div class="slot" id="slot-c3"><span class="slot-icon">📄</span><div><div class="slot-title">期末製成品盤存表</div><div class="slot-label" id="lbl-c3">等待上傳…</div></div></div>
+        <div class="file-grid">
+          <div class="file-item" id="slot-c1" onclick="document.getElementById('fileInputCost').click()">
+            <div style="font-size:20px">📄</div>
+            <div><div class="name">期初製成品盤存表</div><div class="sub" id="lbl-c1">尚未指定</div></div>
+          </div>
+          <div class="file-item" id="slot-c2" onclick="document.getElementById('fileInputCost').click()">
+            <div style="font-size:20px">🧾</div>
+            <div><div class="name">製造費用傳票彙總</div><div class="sub" id="lbl-c2">尚未指定</div></div>
+          </div>
+          <div class="file-item" id="slot-c3" onclick="document.getElementById('fileInputCost').click()">
+            <div style="font-size:20px">📄</div>
+            <div><div class="name">期末製成品盤存表</div><div class="sub" id="lbl-c3">尚未指定</div></div>
+          </div>
         </div>
-        <p style="font-size:12px;color:#718096;margin-top:12px">💡 未上傳的檔案將自動套用內建虛擬資料</p>
+        <div class="hint">或者不上傳，直接點執行使用內建虛擬資料</div>
       </div>
 
-      <div style="text-align:center;margin:8px 0 24px">
-        <button class="run-btn" onclick="runCostCalc()" id="runBtnCost">
-          <span id="spinnerCost" class="spinner" style="display:none"></span>
-          <span id="btnIconCost">⚙️</span>
-          <span id="btnTextCost">計算營業成本表</span>
+      <div style="display:flex; justify-content:center; margin: 8px 0 0;">
+        <button class="btn-primary" onclick="runCostCalc()" id="runBtnCost">
+          <span id="btnIconCost">▶</span>
+          <span id="btnTextCost">執行營業成本表計算</span>
+          <div class="spinner" id="spinnerCost"></div>
         </button>
       </div>
       <div id="logBoxCost" class="log-box" style="display:none"></div>

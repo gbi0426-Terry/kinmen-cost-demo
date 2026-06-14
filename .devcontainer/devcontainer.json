@@ -1,0 +1,13 @@
+{
+  "name": "金酒會計成本彙整系統",
+  "image": "mcr.microsoft.com/devcontainers/python:3.11",
+  "postCreateCommand": "pip install flask pandas openpyxl xlsxwriter",
+  "postStartCommand": "python3 web/app.py &",
+  "forwardPorts": [5001],
+  "portsAttributes": {
+    "5001": {
+      "label": "金酒成本系統",
+      "onAutoForward": "openBrowser"
+    }
+  }
+}
